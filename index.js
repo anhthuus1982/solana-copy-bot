@@ -1,13 +1,18 @@
 const { Telegraf } = require('telegraf');
 const { Connection, Keypair, PublicKey } = require('@solana/web3.js');
-const { Jupiter } = require('@jup-ag/api');
+const { Jupiter, TOKEN_LIST_URL } = require('@jup-ag/api');
 const bs58 = require('bs58');
 
 const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN);
 const users = {};
 
 async function initJupiter(connection) {
-    return await Jupiter.load({ connection, cluster: 'mainnet-beta' });
+    const jupiter = new Jupiter({
+        connection,
+        cluster: 'mainnet-beta',
+        tokenList: await (await fetch(TOKEN_LIST_URL)).json(),
+    });
+    return jupiter;
 }
 
 bot.start((ctx) => ctx.reply("Chao ban! Day la bot sao chep giao dich Solana.\nDung /setup de nhap thong tin."));
@@ -99,14 +104,18 @@ async function copyTrade(tokenMint, amount, ctx, user) {
         const inputMint = new PublicKey("So11111111111111111111111111111111111111112");
         const outputMint = new PublicKey(tokenMint);
         const adjustedAmount = Math.floor((amount * (user.copyPercentage / 100)) * 0.01 * 1e9);
-        const routes = await user.jupiter.computeRoutes({ inputMint, outputMint, amount: adjustedAmount, slippageBps: user.slippageBps });
-        const { transactions } = await user.jupiter.exchange({ routeInfo: routes.routesInfos[0], userPublicKey: user.wallet.publicKey });
-        for (const tx of transactions) {
-            tx.sign([user.wallet]);
-            const txid = await user.connection.sendRawTransaction(tx.serialize());
-            await user.connection.confirmTransaction(txid);
-            ctx.reply(`Sao chep thanh cong: https://solscan.io/tx/${txid}`);
-        }
+        const routes = await user.jupiter.computeRoutes({
+            inputMint: inputMint.toString(),
+            outputMint: outputMint.toString(),
+            amount: adjustedAmount,
+            slippageBps: user.slippageBps,
+        });
+        const { execute } = await user.jupiter.exchange({
+            routeInfo: routes.routesInfos[0],
+            userPublicKey: user.wallet.publicKey,
+        });
+        const txid = await execute();
+        ctx.reply(`Sao chep thanh cong: https://solscan.io/tx/${txid}`);
     } catch (error) {
         ctx.reply(`Loi sao chep: ${error.message}`);
     }
