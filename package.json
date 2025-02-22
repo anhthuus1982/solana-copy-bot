@@ -1,0 +1,14 @@
+{
+  "name": "solana-copy-bot",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "telegraf": "^4.16.3",
+    "@solana/web3.js": "1.66.2",
+    "@jup-ag/api": "^6.0.25",
+    "bs58": "^4.0.1"
+  }
+}
